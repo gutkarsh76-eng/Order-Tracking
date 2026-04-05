@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spin the Wheel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 30px;
+      letter-spacing: 2px;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+      color: #ffd700;
+    }
+
+    .wheel-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Arrow pointer */
+    .pointer {
+      position: absolute;
+      right: -28px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 18px solid transparent;
+      border-bottom: 18px solid transparent;
+      border-right: 38px solid #ffd700;
+      filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+      z-index: 10;
+    }
+
+    canvas {
+      border-radius: 50%;
+      box-shadow: 0 0 40px rgba(255, 215, 0, 0.3), 0 0 80px rgba(255, 215, 0, 0.1);
+    }
+
+    /* Center hub */
+    .hub {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle, #fff 0%, #ccc 100%);
+      border-radius: 50%;
+      border: 4px solid #ffd700;
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
+      z-index: 5;
+    }
+
+    button#spinBtn {
+      margin-top: 36px;
+      padding: 16px 60px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      color: #1a1a2e;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 6px 24px rgba(255, 140, 0, 0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    button#spinBtn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 32px rgba(255, 140, 0, 0.7);
+    }
+
+    button#spinBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Result overlay */
+    #result-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    #result-overlay.show {
+      display: flex;
+    }
+
+    .result-card {
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
+      border: 3px solid #ffd700;
+      border-radius: 20px;
+      padding: 50px 60px;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(255, 215, 0, 0.4);
+      animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.4); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .result-card .label {
+      font-size: 1rem;
+      color: #aaa;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .result-card .winner {
+      font-size: 2.8rem;
+      font-weight: bold;
+      color: #ffd700;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+      margin-bottom: 30px;
+    }
+
+    .result-card button {
+      padding: 12px 40px;
+      font-size: 1rem;
+      font-weight: bold;
+      background: #ffd700;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .result-card button:hover { background: #ffec6e; }
+  </style>
+</head>
+<body>
+
+  <h1>Spin the Wheel!</h1>
+
+  <div class="wheel-container">
+    <canvas id="wheel" width="420" height="420"></canvas>
+    <div class="hub"></div>
+    <div class="pointer"></div>
+  </div>
+
+  <button id="spinBtn" onclick="spin()">SPIN</button>
+
+  <div id="result-overlay">
+    <div class="result-card">
+      <div class="label">Selected Person</div>
+      <div class="winner" id="winner-name"></div>
+      <button onclick="closeResult()">Spin Again</button>
+    </div>
+  </div>
+
+  <script>
+    const names = [
+      "Rishi",
+      "Priyam",
+      "Raihan",
+      "Maurya ji",
+      "Vijay",
+      "Pathak ji",
+      "Uncle ji",
+      "Verma ji"
+    ];
+
+    const colors = [
+      "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71",
+      "#1abc9c", "#3498db", "#9b59b6", "#e91e8c"
+    ];
+
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+    const numSlices = names.length;
+    const arc = (2 * Math.PI) / numSlices;
+
+    let currentAngle = 0;
+    let spinning = false;
+
+    function drawWheel(angle) {
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = cx - 6;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Outer ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 4, 0, 2 * Math.PI);
+      ctx.strokeStyle = "#ffd700";
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      for (let i = 0; i < numSlices; i++) {
+        const startAngle = angle + i * arc;
+        const endAngle = startAngle + arc;
+
+        // Slice
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.3)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Text
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(startAngle + arc / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 17px 'Segoe UI', sans-serif";
+        ctx.shadowColor = "rgba(0,0,0,0.6)";
+        ctx.shadowBlur = 4;
+        ctx.fillText(names[i], radius - 14, 6);
+        ctx.restore();
+      }
+    }
+
+    drawWheel(currentAngle);
+
+    function spin() {
+      if (spinning) return;
+      spinning = true;
+      document.getElementById("spinBtn").disabled = true;
+
+      // Random full rotations (5–10) + random offset
+      const extraSpins = (5 + Math.floor(Math.random() * 6)) * 2 * Math.PI;
+      const randomOffset = Math.random() * 2 * Math.PI;
+      const totalRotation = extraSpins + randomOffset;
+
+      const duration = 4000 + Math.random() * 1500; // 4–5.5 s
+      const startAngle = currentAngle;
+      const startTime = performance.now();
+
+      function easeOut(t) {
+        return 1 - Math.pow(1 - t, 4);
+      }
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        currentAngle = startAngle + totalRotation * easeOut(t);
+        drawWheel(currentAngle);
+
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          currentAngle = currentAngle % (2 * Math.PI);
+          spinning = false;
+          document.getElementById("spinBtn").disabled = false;
+          showResult();
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function showResult() {
+      // The pointer is on the RIGHT side, so winning slice is at angle = 0 (pointing right)
+      // Normalize angle so slice at pointer is identified
+      const normalised = ((2 * Math.PI) - (currentAngle % (2 * Math.PI))) % (2 * Math.PI);
+      const index = Math.floor(normalised / arc) % numSlices;
+
+      document.getElementById("winner-name").textContent = names[index];
+      document.getElementById("result-overlay").classList.add("show");
+    }
+
+    function closeResult() {
+      document.getElementById("result-overlay").classList.remove("show");
+    }
+  </script>
+</body>
+</html>
